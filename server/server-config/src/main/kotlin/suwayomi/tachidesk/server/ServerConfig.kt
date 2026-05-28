@@ -1065,6 +1065,14 @@ class ServerConfig(
         description = "Output format: webp, jpeg, or avif",
     )
 
+    val imageProxyOnCover: MutableStateFlow<Boolean> by BooleanSetting(
+        protoNumber = 92,
+        group = SettingGroup.PROXY,
+        privacySafe = true,
+        defaultValue = false,
+        description = "Apply image compression proxy to manga covers/thumbnails",
+    )
+
     /** ****************************************************************** **/
     /**                                                                    **/
     /**                          Renamed settings                          **/

@@ -19,6 +19,7 @@ import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.javalin.http.HttpStatus
 import okhttp3.CacheControl
+import okhttp3.Request
 import okhttp3.Response
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -54,10 +55,12 @@ import suwayomi.tachidesk.manga.model.table.MangaStatus
 import suwayomi.tachidesk.manga.model.table.MangaTable
 import suwayomi.tachidesk.manga.model.table.toDataClass
 import suwayomi.tachidesk.server.ApplicationDirs
+import suwayomi.tachidesk.server.serverConfig
 import uy.kohesive.injekt.injectLazy
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
+import java.net.URLEncoder
 import java.time.Instant
 
 private val logger = KotlinLogging.logger { }
@@ -328,6 +331,22 @@ object Manga {
     private val applicationDirs: ApplicationDirs by injectLazy()
     private val network: NetworkHelper by injectLazy()
 
+    private suspend fun buildProxyCoverRequest(imageUrl: String): Response {
+        val quality = serverConfig.imageProxyQuality.value
+        val grayscale = serverConfig.imageProxyGrayscale.value
+        val format = serverConfig.imageProxyFormat.value
+        val proxyUrl = buildString {
+            append("${serverConfig.imageProxyUrl.value}/api/index?url=${URLEncoder.encode(imageUrl, "UTF-8")}")
+            append("&l=$quality")
+            if (grayscale) append("&bw=1")
+            when (format) {
+                "jpeg" -> append("&jpeg=1")
+                "avif" -> append("&avif=1")
+            }
+        }
+        return network.client.newCall(Request.Builder().url(proxyUrl).build()).await()
+    }
+
     private suspend fun fetchHttpSourceMangaThumbnail(
         source: HttpSource,
         mangaEntry: ResultRow,
@@ -375,10 +394,21 @@ object Manga {
         val mangaEntry = transaction { MangaTable.selectAll().where { MangaTable.id eq mangaId }.first() }
         val sourceId = mangaEntry[MangaTable.sourceReference]
 
+        val useProxy = serverConfig.imageProxyOnCover.value &&
+            serverConfig.imageProxyEnabled.value &&
+            serverConfig.imageProxyUrl.value.isNotEmpty()
+
         return when (val source = getCatalogueSourceOrStub(sourceId)) {
             is HttpSource -> {
                 getImageResponse(cacheSaveDir, fileName) {
-                    fetchHttpSourceMangaThumbnail(source, mangaEntry)
+                    if (useProxy) {
+                        val thumbnailUrl = mangaEntry[MangaTable.thumbnail_url]
+                            ?: fetchThumbnailUrl(mangaId)
+                            ?: throw NullPointerException("No thumbnail found")
+                        buildProxyCoverRequest(thumbnailUrl)
+                    } else {
+                        fetchHttpSourceMangaThumbnail(source, mangaEntry)
+                    }
                 }
             }
 
@@ -403,10 +433,15 @@ object Manga {
                     val thumbnailUrl =
                         mangaEntry[MangaTable.thumbnail_url]
                             ?: throw NullPointerException("No thumbnail found")
-                    network.client
-                        .newCall(
-                            GET(thumbnailUrl, cache = CacheControl.FORCE_NETWORK),
-                        ).await()
+
+                    if (useProxy) {
+                        buildProxyCoverRequest(thumbnailUrl)
+                    } else {
+                        network.client
+                            .newCall(
+                                GET(thumbnailUrl, cache = CacheControl.FORCE_NETWORK),
+                            ).await()
+                    }
                 }
             }
 
