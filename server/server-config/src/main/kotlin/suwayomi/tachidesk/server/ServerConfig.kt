@@ -1022,7 +1022,48 @@ class ServerConfig(
         description = "Enable the WebView via CEF (Chromium)"
     )
 
+    val imageProxyEnabled: MutableStateFlow<Boolean> by BooleanSetting(
+        protoNumber = 87,
+        group = SettingGroup.PROXY,
+        privacySafe = true,
+        defaultValue = false,
+        description = "Enable image compression proxy (Bandwidth Hero)",
+    )
 
+    val imageProxyUrl: MutableStateFlow<String> by StringSetting(
+        protoNumber = 88,
+        group = SettingGroup.PROXY,
+        privacySafe = true,
+        defaultValue = "http://localhost:8000",
+        description = "Bandwidth Hero proxy base URL",
+    )
+
+    val imageProxyQuality: MutableStateFlow<Int> by IntSetting(
+        protoNumber = 89,
+        group = SettingGroup.PROXY,
+        privacySafe = true,
+        defaultValue = 40,
+        min = 1,
+        max = 100,
+        description = "Image compression quality (1-100, lower = smaller file)",
+    )
+
+    val imageProxyGrayscale: MutableStateFlow<Boolean> by BooleanSetting(
+        protoNumber = 90,
+        group = SettingGroup.PROXY,
+        privacySafe = true,
+        defaultValue = false,
+        description = "Convert images to grayscale (BW mode)",
+    )
+
+    val imageProxyFormat: MutableStateFlow<String> by StringSetting(
+        protoNumber = 91,
+        group = SettingGroup.PROXY,
+        privacySafe = true,
+        defaultValue = "webp",
+        pattern = "^(webp|jpeg|avif)$".toRegex(),
+        description = "Output format: webp, jpeg, or avif",
+    )
 
     /** ****************************************************************** **/
     /**                                                                    **/

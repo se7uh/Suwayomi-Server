@@ -7,12 +7,15 @@ package suwayomi.tachidesk.manga.impl
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import eu.kanade.tachiyomi.network.NetworkHelper
+import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.source.local.LocalSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.StateFlow
 import libcore.net.MimeUtils
+import okhttp3.Request
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -29,10 +32,12 @@ import suwayomi.tachidesk.manga.model.table.MangaTable
 import suwayomi.tachidesk.manga.model.table.PageTable
 import suwayomi.tachidesk.server.serverConfig
 import suwayomi.tachidesk.util.ConversionUtil
+import uy.kohesive.injekt.injectLazy
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
+import java.net.URLEncoder
 import javax.imageio.IIOImage
 import javax.imageio.ImageIO
 import javax.imageio.ImageWriteParam
@@ -40,6 +45,7 @@ import javax.imageio.ImageWriter
 
 object Page {
     private val logger = KotlinLogging.logger {}
+    private val networkHelper: NetworkHelper by injectLazy()
 
     /**
      * A page might have a imageUrl ready from the get go, or we might need to
@@ -136,7 +142,31 @@ object Page {
 
         // Note: don't care about invalidating cache because OS cache is not permanent
         return getImageResponse(cacheSaveDir, fileName) {
-            source.getImage(tachiyomiPage)
+            if (serverConfig.imageProxyEnabled.value && serverConfig.imageProxyUrl.value.isNotEmpty()) {
+                try {
+                    val trueImageUrl = tachiyomiPage.imageUrl ?: getTrueImageUrl(tachiyomiPage, source)
+                    val quality = serverConfig.imageProxyQuality.value
+                    val grayscale = serverConfig.imageProxyGrayscale.value
+
+                    val format = serverConfig.imageProxyFormat.value
+                    val proxyUrl = buildString {
+                        append("${serverConfig.imageProxyUrl.value}/api/index?url=${URLEncoder.encode(trueImageUrl, "UTF-8")}")
+                        append("&l=$quality")
+                        if (grayscale) append("&bw=1")
+                        when (format) {
+                            "jpeg" -> append("&jpeg=1")
+                            "avif" -> append("&avif=1")
+                        }
+                    }
+
+                    networkHelper.client.newCall(Request.Builder().url(proxyUrl).build()).await()
+                } catch (e: Exception) {
+                    logger.warn(e) { "Image proxy failed, falling back to direct fetch" }
+                    source.getImage(tachiyomiPage)
+                }
+            } else {
+                source.getImage(tachiyomiPage)
+            }
         }
     }
 
