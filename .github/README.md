@@ -69,3 +69,25 @@ server.imageProxyGrayscale = false
 server.imageProxyFormat = "webp"
 server.imageProxyOnCover = false
 ```
+
+---
+
+## 3. Default UI Route
+
+Change the default landing page from Library to Browse (or any other route).
+
+### How it works
+
+Injects a `<script>` snippet into `index.html` that uses `history.replaceState` to set the initial route before the SPA renders. No page reload, no auth bypass.
+
+### Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `defaultUIRoute` | `""` (empty) | Default route: `browse`, `library`, etc. Empty = SPA default (library) |
+
+### server.conf example
+
+```ini
+server.defaultUIRoute = "browse"
+```

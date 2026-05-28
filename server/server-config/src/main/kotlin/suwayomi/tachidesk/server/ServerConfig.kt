@@ -1073,6 +1073,14 @@ class ServerConfig(
         description = "Apply image compression proxy to manga covers/thumbnails",
     )
 
+    val defaultUIRoute: MutableStateFlow<String> by StringSetting(
+        protoNumber = 93,
+        group = SettingGroup.WEB_UI,
+        privacySafe = true,
+        defaultValue = "",
+        description = "Default WebUI route (e.g. browse, library). Empty = SPA default.",
+    )
+
     /** ****************************************************************** **/
     /**                                                                    **/
     /**                          Renamed settings                          **/
