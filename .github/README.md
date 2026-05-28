@@ -91,3 +91,21 @@ Injects a `<script>` snippet into `index.html` that uses `history.replaceState` 
 ```ini
 server.defaultUIRoute = "browse"
 ```
+
+---
+
+## 4. Hidden UI Routes
+
+Hide sidebar items and restrict access to specific routes (Library, Updates, History, etc.).
+
+### Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `hiddenUIRoutes` | `""` (empty) | Comma-separated routes: `library, updates, history` |
+
+### server.conf example
+
+```ini
+server.hiddenUIRoutes = "library, updates, history"
+```

@@ -207,19 +207,34 @@ object WebInterfaceManager {
 
         if (orgIndexHtml.exists()) {
             var indexHtml = orgIndexHtml.readText()
+            val injections = mutableListOf<String>()
 
             if (ServerSubpath.isDefined()) {
                 val subpathInjectionBaseTag = "<base href=\"${ServerSubpath.asRootPath()}\">"
-                indexHtml = indexHtml.replace("<head>", "<head>$subpathInjectionBaseTag")
+                injections.add(subpathInjectionBaseTag)
             }
 
             val defaultRoute = serverConfig.defaultUIRoute.value.trim('/')
             if (defaultRoute.isNotEmpty()) {
-                val routeInjection = "<script>if(location.pathname==='/')history.replaceState(null,'','/$defaultRoute')</script>"
-                indexHtml = indexHtml.replace("</head>", "$routeInjection</head>")
+                injections.add("<script>if(location.pathname==='/')history.replaceState(null,'','/$defaultRoute')</script>")
             }
 
-            orgIndexHtml.writeText(indexHtml)
+            val hiddenRaw = serverConfig.hiddenUIRoutes.value
+            if (hiddenRaw.isNotEmpty()) {
+                val routes = hiddenRaw.split(',')
+                    .map { it.trim().trim('/') }
+                    .filter { it.isNotEmpty() }
+
+                if (routes.isNotEmpty()) {
+                    val css = routes.joinToString(",", transform = { "a[href=\"/$it\"]" }) + "{display:none!important}"
+                    injections.add("<style>$css</style>")
+                }
+            }
+
+            if (injections.isNotEmpty()) {
+                indexHtml = indexHtml.replace("<head>", "<head>${injections.joinToString("")}")
+                orgIndexHtml.writeText(indexHtml)
+            }
         }
 
         return tempWebUIRoot

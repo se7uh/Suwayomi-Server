@@ -1081,6 +1081,14 @@ class ServerConfig(
         description = "Default WebUI route (e.g. browse, library). Empty = SPA default.",
     )
 
+    val hiddenUIRoutes: MutableStateFlow<String> by StringSetting(
+        protoNumber = 94,
+        group = SettingGroup.WEB_UI,
+        privacySafe = true,
+        defaultValue = "",
+        description = "Comma-separated routes to hide from sidebar and redirect (e.g. library, updates, history)",
+    )
+
     /** ****************************************************************** **/
     /**                                                                    **/
     /**                          Renamed settings                          **/
