@@ -11,8 +11,10 @@ import io.javalin.http.HandlerType
 import io.javalin.http.HttpStatus
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import suwayomi.tachidesk.manga.impl.CategoryManga
@@ -21,6 +23,7 @@ import suwayomi.tachidesk.manga.impl.ChapterDownloadHelper
 import suwayomi.tachidesk.manga.impl.Library
 import suwayomi.tachidesk.manga.impl.Manga
 import suwayomi.tachidesk.manga.impl.Page
+import suwayomi.tachidesk.manga.model.table.MangaTable
 import suwayomi.tachidesk.manga.impl.chapter.getChapterDownloadReadyByIndex
 import suwayomi.tachidesk.manga.impl.sync.KoreaderSyncService
 import suwayomi.tachidesk.manga.model.dataclass.CategoryDataClass
@@ -40,6 +43,12 @@ import suwayomi.tachidesk.server.util.queryParam
 import suwayomi.tachidesk.server.util.withOperation
 import uy.kohesive.injekt.injectLazy
 import kotlin.time.Duration.Companion.days
+
+@Serializable
+data class BatchFetchInput(
+    val ids: List<Int>? = null,
+    val all: Boolean? = null,
+)
 
 object MangaController {
     private val json: Json by injectLazy()
@@ -222,6 +231,42 @@ object MangaController {
                 ctx.getAttribute(Attribute.TachideskUser).requireUser()
                 CategoryManga.removeMangaFromCategory(mangaId, categoryId)
                 ctx.status(200)
+            },
+            withResults = {
+                httpCode(HttpStatus.OK)
+            },
+        )
+
+    /** batch fetch manga data from source */
+    val batchFetch =
+        handler(
+            documentWith = {
+                withOperation {
+                    summary("Batch fetch manga data")
+                    description("Fetch manga data from the source for multiple manga IDs, updating their details and cover.")
+                }
+                body<BatchFetchInput>()
+            },
+            behaviorOf = { ctx ->
+                ctx.getAttribute(Attribute.TachideskUser).requireUser()
+                val input = json.decodeFromString<BatchFetchInput>(ctx.body())
+                ctx.future {
+                    future {
+                        val mangaIds =
+                            if (input.all == true) {
+                                transaction {
+                                    MangaTable.selectAll().where { MangaTable.inLibrary eq true }
+                                        .map { it[MangaTable.id].value }
+                                }
+                            } else {
+                                input.ids ?: emptyList()
+                            }
+                        mangaIds.forEach { id ->
+                            Manga.fetchManga(id)
+                        }
+                        ctx.json(mapOf("updatedIds" to mangaIds))
+                    }
+                }
             },
             withResults = {
                 httpCode(HttpStatus.OK)

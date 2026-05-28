@@ -163,6 +163,48 @@ class MangaMutation {
         }
     }
 
+    data class FetchMangasInput(
+        val clientMutationId: String? = null,
+        val ids: List<Int>? = null,
+        val all: Boolean? = null,
+    )
+
+    data class FetchMangasPayload(
+        val clientMutationId: String?,
+        val mangas: List<MangaType>,
+    )
+
+    @RequireAuth
+    fun fetchMangas(input: FetchMangasInput): CompletableFuture<FetchMangasPayload?> {
+        val (clientMutationId, ids, all) = input
+
+        return future {
+            val mangaIds =
+                if (all == true) {
+                    transaction {
+                        MangaTable.selectAll().where { MangaTable.inLibrary eq true }
+                            .map { it[MangaTable.id].value }
+                    }
+                } else {
+                    ids ?: emptyList()
+                }
+
+            mangaIds.forEach { id ->
+                Manga.fetchManga(id)
+            }
+
+            val mangas =
+                transaction {
+                    MangaTable.selectAll().where { MangaTable.id inList mangaIds }.map { MangaType(it) }
+                }
+
+            FetchMangasPayload(
+                clientMutationId = clientMutationId,
+                mangas = mangas,
+            )
+        }
+    }
+
     data class SetMangaMetaInput(
         val clientMutationId: String? = null,
         val meta: MangaMetaType,
