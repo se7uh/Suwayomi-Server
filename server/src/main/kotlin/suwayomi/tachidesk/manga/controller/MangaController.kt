@@ -7,6 +7,7 @@ package suwayomi.tachidesk.manga.controller
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.javalin.http.HandlerType
 import io.javalin.http.HttpStatus
 import kotlinx.coroutines.GlobalScope
@@ -51,6 +52,7 @@ data class BatchFetchInput(
 )
 
 object MangaController {
+    private val logger = KotlinLogging.logger {}
     private val json: Json by injectLazy()
 
     val retrieve =
@@ -261,10 +263,18 @@ object MangaController {
                             } else {
                                 input.ids ?: emptyList()
                             }
+                        val updatedIds = mutableListOf<Int>()
+                        val failedIds = mutableListOf<Int>()
                         mangaIds.forEach { id ->
-                            Manga.fetchManga(id)
+                            try {
+                                Manga.fetchManga(id)
+                                updatedIds.add(id)
+                            } catch (e: Exception) {
+                                logger.warn(e) { "Failed to fetch manga $id" }
+                                failedIds.add(id)
+                            }
                         }
-                        ctx.json(mapOf("updatedIds" to mangaIds))
+                        ctx.json(mapOf("updatedIds" to updatedIds, "failedIds" to failedIds))
                     }
                 }
             },
