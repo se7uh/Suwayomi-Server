@@ -1,4 +1,4 @@
-# My Patches
+# My Changes
 
 ## 1. Batch Fetch Manga
 
@@ -26,7 +26,7 @@ curl -X POST http://localhost:4567/api/v1/manga/fetch \
 
 **Response:**
 ```json
-{ "updatedIds": [1, 2, 3] }
+{ "updatedIds": [1, 2, 3], "failedIds": [4, 5] }
 ```
 
 ---
@@ -35,16 +35,6 @@ curl -X POST http://localhost:4567/api/v1/manga/fetch \
 
 Compress manga images on-the-fly through an external proxy to reduce bandwidth.
 Uses [bandwidth-hero-proxy](https://github.com/ayastreb/bandwidth-hero-proxy).
-
-### How it works
-
-When enabled, image requests go through the proxy:
-```
-{proxyUrl}/api/index?url={encodedImageUrl}&l={quality}&bw={0|1}&jpeg={0|1}&avif={0|1}
-```
-
-- **Page images**: proxied per-request. If the proxy fails, falls back to fetching the original image directly.
-- **Covers**: only proxied when `imageProxyOnCover = true`.
 
 ### Settings
 
@@ -76,10 +66,6 @@ server.imageProxyOnCover = false
 
 Change the default landing page from Library to Browse (or any other route).
 
-### How it works
-
-Injects a `<script>` snippet into `index.html` that uses `history.replaceState` to set the initial route before the SPA renders. No page reload, no auth bypass.
-
 ### Settings
 
 | Setting | Default | Description |
@@ -96,7 +82,7 @@ server.defaultUIRoute = "browse"
 
 ## 4. Hidden UI Routes
 
-Hide sidebar items and restrict access to specific routes (Library, Updates, History, etc.).
+Hide sidebar items (Library, Updates, History, etc.).
 
 ### Settings
 
