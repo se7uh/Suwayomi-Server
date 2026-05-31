@@ -17,6 +17,13 @@ curl -X POST http://localhost:4567/api/v1/manga/fetch \
   -d '{"all": true}'
 ```
 
+Fetch all manga from a specific source:
+```bash
+curl -X POST http://localhost:4567/api/v1/manga/fetch \
+  -H "Content-Type: application/json" \
+  -d '{"all": true, "sourceId": "715852138627391"}'
+```
+
 Fetch specific manga by IDs:
 ```bash
 curl -X POST http://localhost:4567/api/v1/manga/fetch \

@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.andWhere
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
@@ -49,6 +50,7 @@ import kotlin.time.Duration.Companion.days
 data class BatchFetchInput(
     val ids: List<Int>? = null,
     val all: Boolean? = null,
+    val sourceId: String? = null,
 )
 
 object MangaController {
@@ -257,8 +259,11 @@ object MangaController {
                         val mangaIds =
                             if (input.all == true) {
                                 transaction {
-                                    MangaTable.selectAll().where { MangaTable.inLibrary eq true }
-                                        .map { it[MangaTable.id].value }
+                                    val query = MangaTable.selectAll().where { MangaTable.inLibrary eq true }
+                                    if (input.sourceId != null) {
+                                        query.andWhere { MangaTable.sourceReference eq input.sourceId.toLong() }
+                                    }
+                                    query.map { it[MangaTable.id].value }
                                 }
                             } else {
                                 input.ids ?: emptyList()
